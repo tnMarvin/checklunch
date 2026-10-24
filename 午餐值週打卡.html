@@ -1,0 +1,171 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>午餐值週打卡</title>
+<style>
+:root{--bg:#fff6e5;--card:#fff;--ink:#3a2a14;--mut:#8a7a62;--ac:#f08a24;--ok:#2e9e5b;--okbg:#dff5e7;--line:#f0dfc2;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#1b1610;--card:#2a2218;--ink:#f6ead6;--mut:#b5a58c;--ac:#ffa13d;--ok:#5fd68c;--okbg:#1f3a2a;--line:#43372a}}
+:root[data-theme="dark"]{--bg:#1b1610;--card:#2a2218;--ink:#f6ead6;--mut:#b5a58c;--ac:#ffa13d;--ok:#5fd68c;--okbg:#1f3a2a;--line:#43372a}
+*{box-sizing:border-box}
+html,body{height:100%}
+body{margin:0;background:var(--bg);color:var(--ink);font-family:"Noto Sans TC","PingFang TC","Microsoft JhengHei",sans-serif;padding:8px 14px 30px;display:flex;flex-direction:column;overflow:auto}
+header{display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap}
+#clock{font-size:clamp(1.6rem,5vh,2.6rem);line-height:1.1;font-weight:800;font-variant-numeric:tabular-nums}
+.sub{color:var(--mut);font-size:.95rem}
+select,input,button{font:inherit}
+select,input[type=time]{padding:6px 8px;border-radius:8px;border:1px solid var(--line);background:var(--card);color:var(--ink)}
+#ban:empty{display:none}
+.banner{margin:6px 0;padding:7px 12px;border-radius:14px;background:var(--ac);color:#2b1700;font-weight:700;font-size:1.1rem}
+.card{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:10px;margin:0;flex:1 1 0;min-width:0}
+#main{flex:1;display:flex;gap:10px;align-items:flex-start}
+.jobs{display:grid;gap:8px;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));margin-top:6px}
+@media (max-aspect-ratio:1/1){#main{flex-direction:column;align-items:stretch}}
+h2{margin:0 0 4px;font-size:1.2rem}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(130px,1fr));gap:10px;margin-top:10px}
+.p{border:2px solid var(--line);background:var(--card);color:var(--ink);border-radius:14px;padding:clamp(6px,2vh,18px) 6px;cursor:pointer;text-align:center}
+.p b{display:block;font-size:clamp(1.2rem,4.5vh,2.2rem)}
+.p small{color:var(--mut)}
+.p:disabled{opacity:.5;cursor:not-allowed}
+.p.done{background:var(--okbg);border-color:var(--ok)}
+.p.done b::after{content:" ✓";color:var(--ok)}
+.chips{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px}
+.chip{background:var(--bg);border:1px solid var(--line);border-radius:999px;padding:3px 10px;font-size:.9rem}
+.job{border:1px solid var(--line);border-radius:14px;padding:8px;margin:0;background:var(--bg)}
+.job.ok{border-color:var(--ok);background:var(--okbg)}
+.jt{font-weight:700;margin-bottom:6px}
+.row{display:flex;gap:8px;flex-direction:column}
+.row .p{width:100%}
+.bar{height:8px;background:var(--line);border-radius:6px;margin-top:8px;overflow:hidden}
+.bar i{display:block;height:100%;background:var(--ok);transition:width .3s}
+#ov{position:fixed;inset:0;background:rgba(30,18,0,.75);display:none;align-items:center;justify-content:center;z-index:9;padding:20px;text-align:center}
+#ov .box{background:var(--card);border-radius:24px;padding:28px 22px;max-width:420px;animation:pop .4s}
+#ov .em{font-size:5rem}
+#ov h1{margin:6px 0;font-size:1.8rem}
+#ov button{margin-top:14px;padding:10px 26px;border:0;border-radius:12px;background:var(--ac);color:#2b1700;font-weight:700;font-size:1.1rem;cursor:pointer}
+@keyframes pop{from{transform:scale(.6);opacity:0}}
+.cf{position:fixed;top:-40px;font-size:2rem;z-index:10;animation:fall linear forwards;pointer-events:none}
+@keyframes fall{to{transform:translateY(110vh) rotate(540deg)}}
+details{position:fixed;right:10px;bottom:6px;z-index:5;background:var(--card);border:1px solid var(--line);border-radius:10px;padding:2px 10px;color:var(--mut);font-size:.8rem}
+.sm{padding:5px 12px;border-radius:8px;border:1px solid var(--line);background:var(--card);color:var(--ink);cursor:pointer}
+</style>
+</head>
+<body>
+<header>
+  <div><div class="sub" id="date"></div><div id="clock">--:--:--</div></div>
+  <label class="sub">本週輪值：第 <select id="wk"></select> 週</label>
+</header>
+<div id="ban"></div><div id="main"></div>
+<details>
+  <summary>老師工具（測試與重設）</summary>
+  <p>模擬時間：<input type="time" id="sim" step="1"> <button class="sm" onclick="setSim()">套用</button> <button class="sm" onclick="clearSim()">回到真實時間</button></p>
+  <p><button class="sm" onclick="resetAll()">重設今天所有打卡</button></p>
+</details>
+<div id="ov"><div class="box"><div class="em" id="oe"></div><h1 id="ot"></h1><p id="om"></p><button onclick="closeOv()">好的！</button></div></div>
+
+<script>
+/* 每週：主食|副食一·工具箱|副食二·副食三|湯|水果·乳品|值週生1,2,3,4 */
+const W=["1,23|13,22|2,17|3,16|21|6,15,26,29","5,25|10,27|6,28|8,19|14|4,23,16,20","9,23|15,24|11,20|3,26|29|18,6,7,21","8,27|5,16|1,25|14,28|4|24,10,9,29","15,19|9,21|10,20|11,23|7|18,4,2,3","2,22|14,16|4,24|8,27|26|13,21,5,11","7,25|15,28|13,29|6,17|20|27,22,10,14","14,26|3,22|5,19|1,24|10|27,16,2,25","15,17|8,25|9,29|4,27|6|11,3,22,10","11,19|1,20|2,21|13,23|5|28,24,15,25","3,29|4,26|7,22|6,16|17|27,5,14,23","13,27|5,21|14,28|10,20|11|8,18,17,16","4,24|6,17|15,16|9,29|1|28,25,11,7","13,19|11,20|8,22|3,25|23|24,17,4,2","10,28|7,17|5,27|2,21|9|20,6,8,13","13,16|11,19|4,23|15,24|25|14,8,9,26","14,20|1,29|7,26|8,22|2|19,28,17,23","4,21|3,17|11,28|5,25|24|7,9,22,19","6,19|2,23|8,26|7,22|16|15,13,21,29","9,28|10,27|3,29|14,24|15|5,26,20,19"];
+const JOBS=[["主食","🍚"],["副食一・工具箱","🧰"],["副食二・副食三","🥦"],["湯","🍲"],["水果・乳品","🍎"]];
+const CL=[{label:"值週生1",time:"早上",tasks:["中午餐車清潔","南面走廊清潔"]},{label:"值週生2",time:"早上",tasks:["中午洗手台清潔","北面走廊清潔"]},{label:"值週生3",time:"下午",tasks:["中午搬、發聯絡簿","黑板區、講台區"]},{label:"值週生4",time:"下午",tasks:["中午搬、發聯絡簿","教室地板＋掃具"]}];
+const T1=11*3600+56*60, T2=12*3600+25*60;
+let off=0, st={}, phase=-1, wk=1;
+const $=id=>document.getElementById(id);
+const sel=$("wk");
+for(let i=1;i<=20;i++)sel.add(new Option(i,i));
+
+function load(){
+  let s=null;
+  try{s=JSON.parse(localStorage.getItem("lunch-st2")||"null")}catch(e){}
+  const today=new Date().toDateString();
+  if(s&&s.date===today){st=s;wk=s.week}else{st={date:today,week:1,r1:[],r2:[],c:[],f:{}};wk=1}
+  sel.value=wk;
+}
+function save(){try{localStorage.setItem("lunch-st2",JSON.stringify(st))}catch(e){}}
+function info(){
+  const p=W[wk-1].split("|");
+  const jobs=JOBS.map((j,i)=>({name:j[0],icon:j[1],nums:p[i].split(",").map(Number)}));
+  const v=p[5].split(",").map(Number);
+  return {jobs,total:jobs.reduce((s,j)=>s+j.nums.length,0),clean:CL.map((c,i)=>({...c,n:v[i]}))};
+}
+sel.onchange=()=>{wk=+sel.value;st={date:new Date().toDateString(),week:wk,r1:[],r2:[],c:[],f:{}};save();render()};
+
+function now(){return new Date(Date.now()+off)}
+function secs(d){return d.getHours()*3600+d.getMinutes()*60+d.getSeconds()}
+function fmt(s){const m=Math.floor(s/60);return m+" 分 "+String(s%60).padStart(2,"0")+" 秒"}
+
+function btn(k,id,n,sub,en){
+  const d=st[k].includes(id);
+  return `<button class="p ${d?"done":""}" ${en?"":"disabled"} onclick="tog('${k}','${id}')"><b>${n} 號</b><small>${sub}</small></button>`;
+}
+function jobsCard(title,hint,k,sub,en,cls){
+  const I=info(),n=st[k].length;
+  const body=I.jobs.map((j,ji)=>{
+    const ids=j.nums.map(x=>ji+":"+x),all=ids.every(x=>st[k].includes(x));
+    return `<div class="job ${all?"ok":""}"><div class="jt">${j.icon} ${j.name}</div><div class="row">${j.nums.map((x,i)=>btn(k,ids[i],x,sub,en)).join("")}</div></div>`;
+  }).join("");
+  return `<div class="card ${cls||""}"><h2>${title}</h2><div class="jobs">${body}</div><div class="bar"><i style="width:${n/I.total*100}%"></i></div><div class="sub">${n} / ${I.total} 完成</div></div>`;
+}
+function cleanCard(en,cls){
+  const I=info(),n=st.c.length;
+  const body=I.clean.map((c,i)=>{
+    const id=i+":"+c.n,d=st.c.includes(id);
+    return `<div class="job ${d?"ok":""}"><div class="jt">🧹 ${c.label}（${c.time}服務）</div><div class="chips">${c.tasks.map(x=>`<span class="chip">${x}</span>`).join("")}</div><div class="row" style="margin-top:8px">${btn("c",id,c.n,"做完按我",en)}</div></div>`;
+  }).join("");
+  return `<div class="card ${cls||""}"><h2>🧹 值週生清潔</h2><div class="jobs">${body}</div><div class="bar"><i style="width:${n/4*100}%"></i></div><div class="sub">${n} / 4 完成</div></div>`;
+}
+function render(){
+  const I=info(),t=secs(now());
+  let h="",ban="";
+  if(phase===0)ban=`<div class="banner">⏳ 11:56 準備抬飯菜！<span id="cd"></span></div>`;
+  if(phase===1)ban=`<div class="banner">🍚 抬飯菜時間到！回來之後請按自己的號碼。</div>`;
+  if(phase===2)ban=`<div class="banner">📦 12:25 了！抬餐盒的同學按下再出發，值週生開始清潔！</div>`;
+  if(phase<2)h=jobsCard("🍚 抬飯菜（回到教室後，按自己的號碼）","","r1","回來了",phase===1,"");
+  else h=jobsCard("📦 抬餐盒回廚房（按下再出發）","","r2","出發",true,"")+cleanCard(true,"");
+  $("ban").innerHTML=ban;$("main").innerHTML=h;
+}
+
+function ov(e,t,m,confetti){
+  $("oe").textContent=e;$("ot").textContent=t;$("om").textContent=m;$("ov").style.display="flex";
+  beep();
+  if(confetti){const em=["🎉","🎊","⭐","🍚","🥦","🍎","✨"];
+    for(let i=0;i<45;i++){const s=document.createElement("span");s.className="cf";s.textContent=em[i%em.length];
+      s.style.left=Math.random()*100+"vw";s.style.animationDuration=(2+Math.random()*2.5)+"s";s.style.animationDelay=Math.random()*1.2+"s";
+      document.body.appendChild(s);setTimeout(()=>s.remove(),6500)}}
+}
+function closeOv(){$("ov").style.display="none"}
+function beep(){try{const c=new (window.AudioContext||window.webkitAudioContext)();[660,880,1100].forEach((f,i)=>{const o=c.createOscillator(),g=c.createGain();o.frequency.value=f;o.connect(g);g.connect(c.destination);g.gain.setValueAtTime(.15,c.currentTime+i*.18);o.start(c.currentTime+i*.18);o.stop(c.currentTime+i*.18+.15)})}catch(e){}}
+
+function tog(k,n){
+  const I=info(),a=st[k],i=a.indexOf(n),adding=i<0;
+  adding?a.push(n):a.splice(i,1);
+  save();render();
+  const total=k==="c"?4:I.total;
+  if(adding&&a.length===total){
+    if(k==="r1")ov("🎉","大家都回來了！","快去盛飯菜囉！座號排在前面的同學負責打菜～",true);
+    if(k==="r2")ov("👍","餐盒出發囉！","辛苦了，謝謝大家幫忙！",true);
+    if(k==="c")ov("🎊","清潔全部完成！","值週生好棒，午餐工作圓滿結束！",true);
+  }
+}
+function resetAll(){st={date:new Date().toDateString(),week:wk,r1:[],r2:[],c:[],f:{}};save();closeOv();phase=-1;tick()}
+function setSim(){const v=$("sim").value;if(!v)return;const p=v.split(":").map(Number),n=new Date();
+  const tgt=(p[0]*3600+p[1]*60+(p[2]||0))*1000,cur=(n.getHours()*3600+n.getMinutes()*60+n.getSeconds())*1000;off=tgt-cur;phase=-1;tick()}
+function clearSim(){off=0;phase=-1;tick()}
+
+function tick(){
+  const d=now(),t=secs(d);
+  $("clock").textContent=String(d.getHours()).padStart(2,"0")+":"+String(d.getMinutes()).padStart(2,"0")+":"+String(d.getSeconds()).padStart(2,"0");
+  $("date").textContent=d.toLocaleDateString("zh-TW",{month:"long",day:"numeric",weekday:"long"})+(off?"（模擬時間）":"");
+  const p=t<T1?0:t<T2?1:2;
+  if(p!==phase){
+    const first=phase===-1;phase=p;render();
+    if(p===1&&!st.f.p1){st.f.p1=1;save();ov("🍚","抬飯菜時間到！","請抬飯菜的同學出發，回來後按一下自己的號碼。",false)}
+    if(p===2&&!st.f.p2){st.f.p2=1;save();ov("📦","12:25 到了！","抬餐盒的同學按下按鈕再出發；值週生開始中午清潔工作！",false)}
+  }
+  const cd=$("cd");if(cd&&phase===0)cd.textContent=" 倒數 "+fmt(T1-t);
+}
+load();tick();setInterval(tick,1000);
+</script>
+</body>
+</html>
